@@ -114,3 +114,17 @@ def check_file(path, root="."):
         return False, (f"{norm}: status: {status}，但验证器给出 VERDICT: {got}。"
                        "状态必须与验证结果一致——请依据 VERDICT 修正 status。")
     return True, ""
+
+
+if __name__ == "__main__":
+    # CLI 形态：python verifiers/gate.py <file> [--root DIR]
+    # 供非 hook 形态的 harness（如 OpenCode 插件）调用；违规 → stderr + exit 2。
+    import argparse
+    ap = argparse.ArgumentParser(description="ai4math 状态门禁：检查单个文件")
+    ap.add_argument("path")
+    ap.add_argument("--root", default=".")
+    a = ap.parse_args()
+    ok, msg = check_file(a.path, root=a.root)
+    if not ok:
+        sys.stderr.write("[gate] " + msg + "\n")
+        sys.exit(2)

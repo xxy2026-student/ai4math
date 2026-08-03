@@ -39,9 +39,9 @@ Claude 负责建模、提猜想、写证明草稿；确定性验证器（SymPy /
 `problems/_template/conjectures/C-000-demo.md` 是一个完整的演示样例
 （猜想格式 → spec → 谓词 → 验证 → evidence）。
 
-## 四种驱动方式
+## 五种驱动方式
 
-角色、工作流、纪律全部定义在 `.claude/` 与 CLAUDE.md 里，四种方式跑的是同一个大脑：
+角色、工作流、纪律全部定义在 `.claude/` 与 CLAUDE.md 里，五种方式跑的是同一个大脑：
 
 1. **Claude 订阅**：本目录启动 `claude`（上文的用法，体验最完整）。
 2. **Claude API**：`pip install claude-agent-sdk` + `ANTHROPIC_API_KEY`，
@@ -58,6 +58,12 @@ Claude 负责建模、提猜想、写证明草稿；确定性验证器（SymPy /
    写文件后直接调 `verifiers/gate.py` 过状态门禁。要求模型支持 function calling。
    支持按角色映射不同厂商（`runner/config.example.yaml` 有说明）——
    prover 与 skeptic 用不同厂商的模型可以增强审计独立性。
-4. **零代码通道**：部分厂商提供 Anthropic 兼容端点（DeepSeek、GLM、Kimi 等），
+4. **OpenCode**（开源多模型 harness，MIT，75+ 厂商）：仓库自带 `.opencode/`
+   适配层（agents、commands、状态门禁插件）与 `AGENTS.md`，装好
+   [OpenCode](https://opencode.ai) 后在本目录启动即可，`/explore` 等命令与
+   全部角色原样可用。`.opencode/` 由 `adapters/gen_opencode.py` 从 `.claude/`
+   生成——改角色或工作流只改 `.claude/`，然后重跑生成器；按角色指定模型
+   参考 `adapters/opencode.models.json.example`。
+5. **零代码通道**：部分厂商提供 Anthropic 兼容端点（DeepSeek、GLM、Kimi 等），
    设 `ANTHROPIC_BASE_URL` + `ANTHROPIC_AUTH_TOKEN` 即可让 Claude Code 原样跑
    在他们的模型上。非官方用法，体验取决于对方模型的 agentic 能力。
