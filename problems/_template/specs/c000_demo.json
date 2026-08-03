@@ -1,0 +1,8 @@
+{
+  "conjecture": "C-000",
+  "predicate": "problems/_template/predicates/c000_pred.py",
+  "params": {"a": [0.1, 5.0], "b": [0.1, 5.0]},
+  "n_samples": 300,
+  "seed": 0,
+  "evidence": "problems/_template/results/c000_evidence.json"
+}

@@ -1,0 +1,39 @@
+# 复制为 runner/config.yaml 后按需修改。api_key 一律放环境变量，绝不写进文件。
+#
+# 任何提供「OpenAI 兼容 chat.completions + function calling」的厂商都能接入：
+#   OpenAI    https://api.openai.com/v1
+#   DeepSeek  https://api.deepseek.com/v1
+#   Qwen      https://dashscope.aliyuncs.com/compatible-mode/v1
+#   Gemini    https://generativelanguage.googleapis.com/v1beta/openai
+#   Moonshot  https://api.moonshot.cn/v1
+#   本地模型  http://localhost:11434/v1  (Ollama / vLLM；api_key_env 指向任意已存在变量)
+# Anthropic 原生协议 / AWS Bedrock 等非 OpenAI 兼容接口：起一个 LiteLLM proxy，
+# 把 base_url 指向它即可。
+
+default:
+  base_url: https://api.deepseek.com/v1
+  api_key_env: DEEPSEEK_API_KEY
+  model: deepseek-chat
+
+# .claude/agents/*.md frontmatter 里的模型档位 → 本厂商具体型号
+aliases:
+  opus: deepseek-reasoner
+  sonnet: deepseek-chat
+  haiku: deepseek-chat
+
+# 按角色覆盖，可整体换厂商。
+# 建议：prover 与 skeptic 用不同厂商的模型——跨模型审计比同门左右互搏独立性更强。
+roles:
+  prover:
+    model: deepseek-reasoner
+  skeptic:
+    model: deepseek-reasoner
+  # skeptic:
+  #   base_url: https://api.openai.com/v1
+  #   api_key_env: OPENAI_API_KEY
+  #   model: o3
+
+limits:
+  max_turns: 40            # 单个 agent 一次任务的最大对话轮数
+  tool_output_chars: 8000  # 单条工具结果注入对话的上限
+  request_timeout: 300

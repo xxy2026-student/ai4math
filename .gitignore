@@ -1,0 +1,16 @@
+.venv/
+__pycache__/
+*.pyc
+.claude/settings.local.json
+runner/config.yaml
+
+# 个人研究内容不入库，只发布框架与模板。
+# （若你想在自己的 fork 里版本化研究内容，删掉下面这几行即可）
+ideas/*
+!ideas/_template.md
+literature/papers/*
+!literature/papers/_template.md
+literature/maps/*
+!literature/maps/.gitkeep
+problems/*
+!problems/_template
