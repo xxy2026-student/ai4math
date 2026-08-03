@@ -4,7 +4,19 @@
 Claude 负责建模、提猜想、写证明草稿；确定性验证器（SymPy / nashpy / 数值搜索）
 负责背书；状态推进由 PostToolUse hook 强制核验。核心纪律见 [CLAUDE.md](CLAUDE.md)。
 
-## 一次性安装
+## 一键部署
+
+克隆（或在 GitHub 页面 Code → Download ZIP 解压）后：
+
+- **Windows**：双击 `setup.bat`
+- **Mac / Linux**：`chmod +x setup.sh && ./setup.sh`
+
+脚本自动完成：检测/安装 Python → 建 `.venv` 装依赖 → 冒烟测试 →
+生成 runner 配置 → （可选）安装 OpenCode → （可选）设置 API key。
+幂等可重跑；不想装 OpenCode 加 `-SkipOpenCode` / `--skip-opencode`。
+
+<details>
+<summary>手动安装（脚本失败时的备选）</summary>
 
 1. 安装 Python 3.11+（勾选 Add to PATH）
 2. 建虚拟环境并装依赖：
@@ -19,6 +31,8 @@ Claude 负责建模、提猜想、写证明草稿；确定性验证器（SymPy /
    ```
    .venv\Scripts\python.exe verifiers/search/counterexample_search.py --spec problems/_template/specs/c000_demo.json
    ```
+
+</details>
 
 ## 日常使用
 
