@@ -8,10 +8,13 @@
 """
 import json
 import os
+import time
 import urllib.error
 import urllib.request
 
 from . import loader, tools
+
+RETRYABLE = {429, 500, 502, 503, 504}   # 过载/限流/网关类错误自动重试
 
 ORCHESTRATOR = """\
 你是 ai4math 仓库的主协调 agent，按任务描述推进研究工作流。
@@ -33,17 +36,32 @@ def _api_call(cfg, messages, schemas):
     if "temperature" in cfg:
         payload["temperature"] = cfg["temperature"]
     key = os.environ.get(cfg.get("api_key_env", ""), "")
-    req = urllib.request.Request(
-        cfg["base_url"].rstrip("/") + "/chat/completions",
-        data=json.dumps(payload).encode("utf-8"),
-        headers={"Content-Type": "application/json",
-                 "Authorization": f"Bearer {key}"})
-    try:
-        with urllib.request.urlopen(req, timeout=int(cfg.get("request_timeout", 300))) as r:
-            return json.loads(r.read().decode("utf-8"))
-    except urllib.error.HTTPError as e:
-        body = e.read().decode("utf-8", "replace")[:500]
-        raise RuntimeError(f"API 错误 {e.code}（{cfg['base_url']}）: {body}") from None
+    data = json.dumps(payload).encode("utf-8")
+    headers = {"Content-Type": "application/json", "Authorization": f"Bearer {key}"}
+    url = cfg["base_url"].rstrip("/") + "/chat/completions"
+
+    last = "?"
+    for attempt in range(4):
+        if attempt:
+            wait = (3, 15, 45)[attempt - 1]
+            print(f"  [api] {last}，{wait}s 后第 {attempt}/3 次重试...", flush=True)
+            time.sleep(wait)
+        req = urllib.request.Request(url, data=data, headers=headers)
+        try:
+            with urllib.request.urlopen(req, timeout=int(cfg.get("request_timeout", 300))) as r:
+                return json.loads(r.read().decode("utf-8"))
+        except urllib.error.HTTPError as e:
+            body = e.read().decode("utf-8", "replace")[:500]
+            if e.code in RETRYABLE:
+                last = f"HTTP {e.code}（服务端过载/限流）"
+                continue
+            raise RuntimeError(f"API 错误 {e.code}（{cfg['base_url']}）: {body}") from None
+        except (urllib.error.URLError, TimeoutError, OSError) as e:
+            last = f"网络错误 {type(e).__name__}"
+            continue
+    raise RuntimeError(
+        f"API 连续 4 次失败（{cfg['base_url']}，最后一次：{last}）。"
+        "服务端持续过载或网络不通——稍后再试，或在 runner/config.yaml 换一家厂商。")
 
 
 def _resolve_cfg(cfg_all, role, roles):
