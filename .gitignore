@@ -3,6 +3,8 @@ __pycache__/
 *.pyc
 .claude/settings.local.json
 runner/config.yaml
+remote/hosts.yaml
+remote/jobs.json
 
 # 个人研究内容不入库，只发布框架与模板。
 # （若你想在自己的 fork 里版本化研究内容，删掉下面这几行即可）

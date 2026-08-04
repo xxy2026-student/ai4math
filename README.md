@@ -23,6 +23,7 @@
 - **7 个分工角色**：modeler、scholar、referee、conjecturer、prover、skeptic、writer；评审与审计均在独立上下文中对抗式进行；
 - **确定性验证层**：SymPy 符号验算、nashpy 均衡计算、随机参数反例搜索，统一 `VERDICT` 输出协议与 evidence 存档；
 - **状态门禁**：对 `conjectures/`、`lemmas/` 的每次写入自动核验（[verifiers/gate.py](verifiers/gate.py)），三种运行时共用同一实现；
+- **远程实验**：`/explore` 内置资源评估门（pilot 实测 → 外推分级 → 用户拍板），大型实验经 `remote/remote_run.py` 以 ssh 直连提交到服务器并回收摘要；认证走系统 OpenSSH，仓库不存任何密钥或服务器地址；
 - **多运行时**：角色与工作流定义一份，多处运行，互不绑定。
 
 ## 快速开始
@@ -122,6 +123,7 @@ API key 一律通过环境变量传入，不写入任何文件。支持按角色
 adapters/         适配层生成器
 examples/         Claude Agent SDK 调用示例
 runner/           内置执行器（OpenAI 兼容 chat.completions + function calling）
+remote/           远程实验执行器（ssh 直连；主机配置不入库）
 verifiers/        确定性验证器与状态门禁
 problems/         研究问题工作区（_template/ 为模板与演示样例）
 ideas/            研究想法工作区

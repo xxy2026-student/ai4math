@@ -1,0 +1,17 @@
+# 远程实验服务器清单。复制为 remote/hosts.yaml 使用（hosts.yaml 已被
+# .gitignore 排除，不会进入版本库）。
+#
+# ssh 字段推荐填 ~/.ssh/config 里的 Host 别名——跳板（ProxyJump）、端口、
+# 密钥路径全部交给 ssh config 管理，本框架不接触、不存储任何密钥文件。
+# 认证必须是免密 key（脚本以 BatchMode 运行，不支持密码交互）。
+
+hosts:
+  myserver:
+    ssh: myserver           # ~/.ssh/config 的 Host 别名，或 user@host
+    workdir: ~/ai4math-exp  # 远程工作目录（自动创建）
+    python: python3         # 远端系统 python（setup 用它建 .venv）
+  # cluster:
+  #   ssh: user@hpc.example.edu
+  #   workdir: ~/scratch/ai4math-exp
+  #   python: python3
+  #   # scheduler: slurm    # 预留字段：Slurm 提交尚未实现

@@ -37,6 +37,7 @@ literature/
   maps/             文献地图：论断必须标 [bibkey]，bibkey 必须在 papers/ 有笔记
 verifiers/          确定性验证器（详见各文件 docstring）；gate.py 是状态门禁核心
 runner/             通用 API 执行器：任意 OpenAI 兼容厂商，读同一套 .claude/ 定义
+remote/             远程实验执行器（ssh 直连）；hosts.yaml 与 jobs.json 不入库
 paper/              LaTeX 产出
 ```
 
@@ -106,3 +107,9 @@ model.md 的假设；audit FAIL → 新一轮 /attack。不要因为"流程走�
   禁止向对话里 dump 原始数组——计算不花 token，读原始数据才花。
 - 每个 session 专注一件事，结论落盘到 `problems/`；跨 session 记忆靠文件，不靠长对话。
 - skeptic 审计必须在独立 context 进行：只给证明文本，不给 prover 的推理过程。
+- **远程实验**：超出本地能力的实验用 `remote/remote_run.py` 提交到服务器
+  （先 /explore 的资源评估门分级，**提交前必须经用户确认**）。认证只走系统
+  OpenSSH（~/.ssh 的 key 与 config），严禁读取、复制或上传 ~/.ssh 下的任何
+  文件；hosts.yaml、jobs.json 永不入库。作为猜想背书的 verify.script 必须是
+  本地几十秒可完成的轻量抽查（gate 重跑有 240s 超时）；服务器大规模实验的
+  evidence 只作存档，附主机与 job 信息。
