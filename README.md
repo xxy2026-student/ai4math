@@ -19,8 +19,8 @@
 
 ## 功能
 
-- **7 个研究工作流**：从抽象想法到 LaTeX 成稿的完整管线（见下文）；
-- **6 个分工角色**：modeler、scholar、conjecturer、prover、skeptic、writer；prover 与 skeptic 对抗式分工，审计在独立上下文中进行；
+- **9 个研究工作流**：从抽象想法到 LaTeX 成稿的完整闭环（见下文）；
+- **7 个分工角色**：modeler、scholar、referee、conjecturer、prover、skeptic、writer；评审与审计均在独立上下文中对抗式进行；
 - **确定性验证层**：SymPy 符号验算、nashpy 均衡计算、随机参数反例搜索，统一 `VERDICT` 输出协议与 evidence 存档；
 - **状态门禁**：对 `conjectures/`、`lemmas/` 的每次写入自动核验（[verifiers/gate.py](verifiers/gate.py)），三种运行时共用同一实现；
 - **多运行时**：角色与工作流定义一份，多处运行，互不绑定。
@@ -98,6 +98,8 @@ API key 一律通过环境变量传入，不写入任何文件。支持按角色
 | 命令 | 职能 |
 |---|---|
 | `/ground <想法>` | 抽象想法 → 文献侦察 → 候选形式化。新想法的入口 |
+| `/review <想法>` | referee 独立评审想法：新颖性、重要性、可行性、张力 |
+| `/revise <想法>` | 依据审稿意见或指示修订想法书，保留修订记录 |
 | `/lit <主题或论文>` | 文献检索、精读笔记、引用线追踪 |
 | `/explore <问题>` | 数值探索：均衡计算、参数扫描、现象汇总 |
 | `/conjecture <问题>` | 从实验结果提炼猜想并做随机参数初检 |
@@ -105,8 +107,10 @@ API key 一律通过环境变量传入，不写入任何文件。支持按角色
 | `/audit <猜想编号>` | 独立审计证明；通过后方可标记 `proved` |
 | `/writeup <问题>` | 已验证结果整理为 LaTeX |
 
-典型路径：`/ground → /explore → /conjecture → /attack → /audit → /writeup`，
-`/lit` 可随时插入。完整的格式演示样例见
+典型路径：`/ground → /review → /revise → /explore → /conjecture → /attack →
+/audit → /writeup`。研究是循环而非流水线：`/lit` 可随时插入，任何阶段的产出
+都可以打回上游（反例修正猜想、审稿意见修正想法、实验异常修正模型假设）。
+每个想法在 `ideas/<想法名>/` 下拥有独立工作区，互不干扰。完整的格式演示样例见
 [problems/_template/conjectures/C-000-demo.md](problems/_template/conjectures/C-000-demo.md)
 （猜想 → spec → 谓词 → 验证器 → evidence 全链路）。
 

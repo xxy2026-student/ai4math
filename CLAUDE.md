@@ -29,7 +29,9 @@ problems/<问题名>/
   predicates/       猜想谓词脚本 check(params) -> bool
   experiments/      探索性实验脚本
   results/          实验摘要与 evidence JSON（摘要，不放原始数据）
-ideas/              抽象想法与落地报告（/ground 的工作区，见 _template.md）
+ideas/<想法名>/     每个想法的独立工作区：idea.md（含修订记录）、grounding.md、
+                    map.md（本想法的文献地图）、reviews/（审稿意见）。
+                    模板见 ideas/_template/；不同想法互不干扰
 literature/
   papers/           单篇精读笔记，一篇一个文件（frontmatter 含 url/accessed/access-level）
   maps/             文献地图：论断必须标 [bibkey]，bibkey 必须在 papers/ 有笔记
@@ -66,12 +68,19 @@ audit: problems/<p>/audits/C-001-audit-2026-08-03.md   # 仅 proved 需要
 
 - `/ground <想法>` — 抽象想法 → 文献侦察 → 候选形式化。**新想法的入口**，
   产出经用户拍板后交给 modeler 变成 model.md
+- `/review <想法>` — referee 以审稿人视角独立评审（新颖性/重要性/可行性/张力）
+- `/revise <想法>` — 依据审稿意见或用户指示修订想法书，保留修订记录
 - `/lit <主题/论文>` — 文献检索、精读笔记、追引用线
 - `/explore <问题>` — 数值探索：均衡计算、扫参、现象汇总
 - `/conjecture <问题>` — 从实验结果提猜想 + 立即随机参数初检
 - `/attack <C-编号>` — prover 证明与 skeptic 反例搜索**并行**
 - `/audit <C-编号>` — skeptic 独立审计，通过才能标 proved
 - `/writeup <问题>` — 已验证结果整理成 LaTeX
+
+**研究是循环，不是流水线。** 命令是入口而非必经工序，任何产出都可以打回上游：
+审稿意见 → /revise 改想法；反例 → 收缩猜想重提；/explore 发现异常 → 修订
+model.md 的假设；audit FAIL → 新一轮 /attack。不要因为"流程走到后面了"而
+拒绝回头。
 
 ## 验证器协议
 
