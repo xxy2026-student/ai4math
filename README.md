@@ -1,83 +1,134 @@
-# ai4math — 博弈论研究 agent 框架
+# ai4math
 
-以 Claude Code 为运行时（订阅覆盖，无需 API 计费）的 AI4Math 研究框架：
-Claude 负责建模、提猜想、写证明草稿；确定性验证器（SymPy / nashpy / 数值搜索）
-负责背书；状态推进由 PostToolUse hook 强制核验。核心纪律见 [CLAUDE.md](CLAUDE.md)。
+*A game-theory research agent framework: LLMs propose, deterministic verifiers dispose.*
 
-## 一键部署
+面向博弈论研究的 AI4Math agent 框架。语言模型负责建模、检索文献、提出猜想与起草证明；确定性验证器（SymPy、nashpy、数值搜索）负责检验与背书；状态门禁确保二者永不混淆。同一套框架定义可运行于 Claude Code、OpenCode 或任意 OpenAI 兼容 API。
 
-克隆（或在 GitHub 页面 Code → Download ZIP 解压）后：
+## 设计原则
+
+框架围绕一条纪律构建：**模型提出，机器验证**。
+
+- 任何数学断言在获得验证器背书之前，一律视为猜想；
+- 猜想遵循状态机 `open → numeric-verified → proved`（或任意状态 → `refuted`），状态推进由门禁程序强制核验：
+  - `numeric-verified` / `refuted` 必须由验证脚本的运行结果背书（`VERDICT` 协议），门禁在每次写入时重跑核验；
+  - `proved` 必须存在 skeptic 角色的独立审计记录；
+- 数值验证视为证据而非证明，写作时按状态分级措辞；
+- 文献工作遵循同等纪律：禁止凭记忆引用，每条笔记必须记录来源 URL、访问日期与实际阅读层级。
+
+纪律全文见 [CLAUDE.md](CLAUDE.md)。
+
+## 功能
+
+- **7 个研究工作流**：从抽象想法到 LaTeX 成稿的完整管线（见下文）；
+- **6 个分工角色**：modeler、scholar、conjecturer、prover、skeptic、writer；prover 与 skeptic 对抗式分工，审计在独立上下文中进行；
+- **确定性验证层**：SymPy 符号验算、nashpy 均衡计算、随机参数反例搜索，统一 `VERDICT` 输出协议与 evidence 存档；
+- **状态门禁**：对 `conjectures/`、`lemmas/` 的每次写入自动核验（[verifiers/gate.py](verifiers/gate.py)），三种运行时共用同一实现；
+- **多运行时**：角色与工作流定义一份，多处运行，互不绑定。
+
+## 快速开始
+
+### 环境要求
+
+- Windows 10/11，或 macOS / Linux
+- Python 3.11+（Windows 下缺失时部署脚本可代为安装）
+
+### 一键部署
+
+克隆本仓库（或下载 ZIP 解压）后：
 
 - **Windows**：双击 `setup.bat`
-- **Mac / Linux**：`chmod +x setup.sh && ./setup.sh`
+- **macOS / Linux**：`chmod +x setup.sh && ./setup.sh`
 
-脚本自动完成：检测/安装 Python → 建 `.venv` 装依赖 → 冒烟测试 →
-生成 runner 配置 → （可选）安装 OpenCode → （可选）设置 API key。
-幂等可重跑；不想装 OpenCode 加 `-SkipOpenCode` / `--skip-opencode`。
+脚本依次完成：Python 检测/安装 → 创建虚拟环境并安装依赖 → 运行冒烟测试 →
+生成 runner 配置 →（可选）安装 OpenCode →（可选）配置 API key。
+脚本幂等，可重复运行；跳过 OpenCode 加 `-SkipOpenCode` / `--skip-opencode`。
 
 <details>
-<summary>手动安装（脚本失败时的备选）</summary>
+<summary>手动安装（部署脚本不可用时）</summary>
 
-1. 安装 Python 3.11+（勾选 Add to PATH）
-2. 建虚拟环境并装依赖：
+```
+python -m venv .venv
+.venv\Scripts\python.exe -m pip install -r requirements.txt
+.venv\Scripts\python.exe verifiers/search/counterexample_search.py --spec problems/_template/specs/c000_demo.json
+```
 
-   ```
-   python -m venv .venv
-   .venv\Scripts\python.exe -m pip install -r requirements.txt
-   ```
-
-3. 冒烟测试（预期最后一行 `VERDICT: PASS checked=300`）：
-
-   ```
-   .venv\Scripts\python.exe verifiers/search/counterexample_search.py --spec problems/_template/specs/c000_demo.json
-   ```
+最后一行为冒烟测试，预期输出以 `VERDICT: PASS checked=300` 结尾。
+macOS / Linux 将 `.venv\Scripts\python.exe` 替换为 `.venv/bin/python`。
 
 </details>
 
-## 日常使用
+## 运行方式
 
-在本目录启动 `claude`，然后：
+角色、工作流与纪律全部定义于 `.claude/` 与 `CLAUDE.md`，以下方式共享同一套定义：
 
-| 命令 | 作用 |
+| 方式 | 适用场景 | 使用 |
+|---|---|---|
+| **Claude Code** | 持有 Claude 订阅或 API | 仓库目录内启动 `claude` |
+| **Claude Agent SDK** | 以 Claude API 程序化调用 | 见 [examples/run_via_api.py](examples/run_via_api.py)；`setting_sources=["project"]` 为必填项 |
+| **OpenCode** | 任意模型厂商，终端交互 | 安装 [OpenCode](https://opencode.ai) 后在仓库目录启动；适配层见下 |
+| **内置 runner** | 任意 OpenAI 兼容 API，零额外依赖 | `.venv\Scripts\python.exe -m runner.main "/lit <主题>"` |
+| **Anthropic 兼容端点** | 零代码试用 | 设 `ANTHROPIC_BASE_URL` / `ANTHROPIC_AUTH_TOKEN` 后运行 Claude Code；非官方用法 |
+
+### runner 配置
+
+```
+copy runner\config.example.yaml runner\config.yaml
+```
+
+在 `config.yaml` 中设置 `base_url` / `api_key_env` / `model` 三元组即可接入任意
+OpenAI 兼容厂商（OpenAI、DeepSeek、Qwen、Gemini、本地 Ollama 等，文件内附端点列表）。
+API key 一律通过环境变量传入，不写入任何文件。支持按角色映射不同厂商的模型；
+将 prover 与 skeptic 配置为不同厂商可增强审计独立性。运行时对瞬时 API
+错误（429/5xx）自动退避重试。
+
+### OpenCode 适配层
+
+仓库自带 `.opencode/`（角色、命令、状态门禁插件）与 `AGENTS.md`，OpenCode
+用户开箱即用。这些文件由生成器从 `.claude/` 翻译而来——修改角色或工作流时只改
+`.claude/`，然后重跑：
+
+```
+.venv\Scripts\python.exe adapters/gen_opencode.py
+```
+
+按角色指定模型参见 `adapters/opencode.models.json.example`。
+
+## 研究工作流
+
+| 命令 | 职能 |
 |---|---|
-| `/ground <想法>` | 抽象想法 → 文献侦察 → 候选形式化（**新想法从这里进**） |
-| `/lit <主题/论文>` | 文献检索、精读笔记、追引用线 |
-| `/explore <问题>` | 数值探索：均衡计算、扫参、现象汇总 |
-| `/conjecture <问题>` | 从实验提猜想并立即随机参数初检 |
-| `/attack <C-编号>` | prover 证明 + skeptic 反例搜索并行 |
-| `/audit <C-编号>` | 独立审计证明，通过才标 proved |
-| `/writeup <问题>` | 已验证结果整理成 LaTeX |
+| `/ground <想法>` | 抽象想法 → 文献侦察 → 候选形式化。新想法的入口 |
+| `/lit <主题或论文>` | 文献检索、精读笔记、引用线追踪 |
+| `/explore <问题>` | 数值探索：均衡计算、参数扫描、现象汇总 |
+| `/conjecture <问题>` | 从实验结果提炼猜想并做随机参数初检 |
+| `/attack <猜想编号>` | prover 起草证明与 skeptic 搜索反例并行 |
+| `/audit <猜想编号>` | 独立审计证明；通过后方可标记 `proved` |
+| `/writeup <问题>` | 已验证结果整理为 LaTeX |
 
-两条入口：想法还抽象 → `/ground` 先做文献落地；模型已经能写下来 → 直接
-`/explore`。新问题从 `problems/_template/` 的结构开始；
-`problems/_template/conjectures/C-000-demo.md` 是一个完整的演示样例
-（猜想格式 → spec → 谓词 → 验证 → evidence）。
+典型路径：`/ground → /explore → /conjecture → /attack → /audit → /writeup`，
+`/lit` 可随时插入。完整的格式演示样例见
+[problems/_template/conjectures/C-000-demo.md](problems/_template/conjectures/C-000-demo.md)
+（猜想 → spec → 谓词 → 验证器 → evidence 全链路）。
 
-## 五种驱动方式
+## 目录结构
 
-角色、工作流、纪律全部定义在 `.claude/` 与 CLAUDE.md 里，五种方式跑的是同一个大脑：
+```
+.claude/          角色（agents/）与工作流（skills/）定义——唯一事实源
+.opencode/        OpenCode 适配层（生成产物）
+adapters/         适配层生成器
+examples/         Claude Agent SDK 调用示例
+runner/           内置执行器（OpenAI 兼容 chat.completions + function calling）
+verifiers/        确定性验证器与状态门禁
+problems/         研究问题工作区（_template/ 为模板与演示样例）
+ideas/            研究想法工作区
+literature/       文献笔记与文献地图
+paper/            LaTeX 产出
+CLAUDE.md         研究纪律全文（兼 Claude Code 规则文件）
+AGENTS.md         OpenCode 规则文件（由 CLAUDE.md 生成）
+```
 
-1. **Claude 订阅**：本目录启动 `claude`（上文的用法，体验最完整）。
-2. **Claude API**：`pip install claude-agent-sdk` + `ANTHROPIC_API_KEY`，
-   见 [examples/run_via_api.py](examples/run_via_api.py)。
-   注意 `setting_sources=["project"]` 是命门，不加则 `.claude/` 全部失效。
-3. **任意厂商 API**（OpenAI / Gemini / DeepSeek / Qwen / 本地 Ollama…）：
-
-   ```
-   copy runner\config.example.yaml runner\config.yaml   # 填 base_url/model，key 放环境变量
-   .venv\Scripts\python.exe -m runner.main "/explore my-problem 扫参数"
-   ```
-
-   runner 是约 300 行的模型无关执行器：读同一套 `.claude/` 定义，本地执行工具，
-   写文件后直接调 `verifiers/gate.py` 过状态门禁。要求模型支持 function calling。
-   支持按角色映射不同厂商（`runner/config.example.yaml` 有说明）——
-   prover 与 skeptic 用不同厂商的模型可以增强审计独立性。
-4. **OpenCode**（开源多模型 harness，MIT，75+ 厂商）：仓库自带 `.opencode/`
-   适配层（agents、commands、状态门禁插件）与 `AGENTS.md`，装好
-   [OpenCode](https://opencode.ai) 后在本目录启动即可，`/explore` 等命令与
-   全部角色原样可用。`.opencode/` 由 `adapters/gen_opencode.py` 从 `.claude/`
-   生成——改角色或工作流只改 `.claude/`，然后重跑生成器；按角色指定模型
-   参考 `adapters/opencode.models.json.example`。
-5. **零代码通道**：部分厂商提供 Anthropic 兼容端点（DeepSeek、GLM、Kimi 等），
-   设 `ANTHROPIC_BASE_URL` + `ANTHROPIC_AUTH_TOKEN` 即可让 Claude Code 原样跑
-   在他们的模型上。非官方用法，体验取决于对方模型的 agentic 能力。
+所有研究产出均为纯文本（Markdown / JSON / Python），落盘于 `problems/`、
+`ideas/`、`literature/`、`paper/`；agent 的跨会话记忆即这些文件本身。
+`ideas/`、`literature/`、`problems/` 下除模板外默认不纳入版本控制
+（见 `.gitignore`），以避免将个人研究内容随框架一同发布；如需在私有
+fork 中对研究内容做版本管理，删除相应 ignore 规则即可。
