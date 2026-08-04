@@ -47,9 +47,15 @@ if (-not $py) {
 Write-Host "[1/6] Python: $py"
 
 # ---- 2. venv + 依赖 ----
-if (-not (Test-Path ".venv")) { & $py -m venv .venv }
-& .\.venv\Scripts\python.exe -m pip install --quiet --disable-pip-version-check -r requirements.txt
-Write-Host "[2/6] 虚拟环境与依赖就绪（numpy/scipy/sympy/nashpy）"
+if (-not (Test-Path ".venv")) {
+    Write-Host "[2/6] 创建虚拟环境..."
+    & $py -m venv .venv
+}
+Write-Host "[2/6] 安装依赖（首次需下载约 150 MB：numpy/scipy/sympy/nashpy，请耐心）"
+Write-Host "      若下载太慢，可 Ctrl+C 中止，运行下面一行配置国内镜像后重新双击 setup.bat："
+Write-Host "      .venv\Scripts\python.exe -m pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple"
+& .\.venv\Scripts\python.exe -m pip install --disable-pip-version-check -r requirements.txt
+if ($LASTEXITCODE -ne 0) { throw "依赖安装失败（多为网络问题）——配置上面的镜像后重跑。" }
 
 # ---- 3. 冒烟测试 ----
 & .\.venv\Scripts\python.exe verifiers\search\counterexample_search.py --spec problems/_template/specs/c000_demo.json

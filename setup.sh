@@ -36,7 +36,9 @@ echo "[1/6] Python: $PY"
 
 # 2. venv + 依赖
 [ -d .venv ] || "$PY" -m venv .venv
-./.venv/bin/python -m pip install --quiet --disable-pip-version-check -r requirements.txt
+echo "[2/6] 安装依赖（首次需下载约 150 MB，请耐心；太慢可配置国内镜像："
+echo "      ./.venv/bin/python -m pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple ）"
+./.venv/bin/python -m pip install --disable-pip-version-check -r requirements.txt
 echo "[2/6] 虚拟环境与依赖就绪"
 
 # 3. 冒烟测试
