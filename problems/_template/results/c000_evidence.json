@@ -1,7 +1,16 @@
 {
+  "claim_id": "C-000",
   "conjecture": "C-000",
+  "problem": "_template",
   "spec": "problems/_template/specs/c000_demo.json",
+  "predicate": "problems/_template/predicates/c000_pred.py",
+  "spec_sha256": "sha256:ce1e770640a42b437a36017cbe6964db49fd67dcf1896f813e94a557241ac7f2",
+  "predicate_sha256": "sha256:5821fbaa8aae6bbc62ffc26c92a3ffa7a523fa49eda1522ae988ddb941420133",
+  "verifier_sha256": "sha256:b2eea604fed4fce37111f6f1a237232c09fcbed2bdda7eaffe394609fff5e0e4",
+  "evidence": "problems/_template/results/c000_evidence.json",
   "seed": 0,
+  "n_samples": 300,
+  "method": "bounded-random-search",
   "result": "PASS",
   "checked": 300,
   "timestamp": "2026-08-04 10:31:04"

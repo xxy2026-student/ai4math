@@ -1,5 +1,5 @@
 ﻿<#
-ai4math 一键部署（Windows）。
+AI4Research 一键部署（Windows；仓库名兼容保留为 ai4math）。
 
 用法：双击 setup.bat，或在 PowerShell 中：
     .\setup.ps1                 # 交互式，问一步装一步
@@ -7,7 +7,7 @@ ai4math 一键部署（Windows）。
     .\setup.ps1 -SkipOpenCode   # 只装 Python 环境（用 runner / Claude Code 的人）
 
 脚本做的事：找/装 Python 3.12 → 建 .venv 装依赖 → 跑冒烟测试 →
-生成 runner 配置 → （可选）装 Node + OpenCode → （可选）设 API key。
+生成 runner 配置 → （可选）装 Node + OpenCode → 检查 API key 配置。
 全程幂等，重复运行安全。
 #>
 param(
@@ -24,7 +24,7 @@ function Confirm-Step($msg) {
 }
 
 Write-Host ""
-Write-Host "=== ai4math 一键部署 ===" -ForegroundColor Cyan
+Write-Host "=== AI4Research 一键部署 ===" -ForegroundColor Cyan
 
 # ---- 1. Python ----
 $py = $null
@@ -60,7 +60,11 @@ if ($LASTEXITCODE -ne 0) { throw "依赖安装失败（多为网络问题）—�
 # ---- 3. 冒烟测试 ----
 & .\.venv\Scripts\python.exe verifiers\search\counterexample_search.py --spec problems/_template/specs/c000_demo.json
 if ($LASTEXITCODE -ne 0) { throw "冒烟测试失败——请把上面的输出发给维护者。" }
-Write-Host "[3/6] 冒烟测试通过（上一行应为 VERDICT: PASS checked=300）"
+& .\.venv\Scripts\python.exe verifiers\gate.py --all
+if ($LASTEXITCODE -ne 0) { throw "全树证据门禁失败——请检查上面的 claim/evidence 绑定。" }
+& .\.venv\Scripts\python.exe -B -m unittest discover -s tests -q
+if ($LASTEXITCODE -ne 0) { throw "框架单元测试失败——请把上面的输出发给维护者。" }
+Write-Host "[3/6] 验证器、全树门禁与框架测试通过"
 
 # ---- 4. runner 配置 ----
 if (-not (Test-Path "runner\config.yaml")) {
@@ -73,17 +77,28 @@ if (-not (Test-Path "runner\config.yaml")) {
 # ---- 5. OpenCode（可选） ----
 if (-not $SkipOpenCode) {
     $oc = Get-Command opencode -ErrorAction SilentlyContinue
+    $ocHealthy = $false
     if ($oc) {
-        Write-Host "[5/6] OpenCode 已安装：$($oc.Source)"
-    } elseif (Confirm-Step "安装 OpenCode（开源终端 agent，经 npm）？没有 Node 会先装 Node LTS") {
+        try {
+            & $oc.Source --version *> $null
+            $ocHealthy = ($LASTEXITCODE -eq 0)
+        } catch {
+            $ocHealthy = $false
+        }
+    }
+    if ($ocHealthy) {
+        Write-Host "[5/6] OpenCode 已安装且可运行：$($oc.Source)"
+    } elseif (Confirm-Step "未找到可运行的 OpenCode。经 npm 安装/修复？没有 Node 会先装 Node LTS") {
         $npm = Get-Command npm -ErrorAction SilentlyContinue
         if (-not $npm) {
             winget install --id OpenJS.NodeJS.LTS --accept-package-agreements --accept-source-agreements
+            if ($LASTEXITCODE -ne 0) { throw "Node.js 安装失败。" }
         }
         $npmExe = "$env:ProgramFiles\nodejs\npm.cmd"
         if (Get-Command npm -ErrorAction SilentlyContinue) { $npmExe = (Get-Command npm).Source }
         & $npmExe install -g opencode-ai
-        Write-Host "[5/6] OpenCode 安装完成（新开终端后 opencode 命令生效）"
+        if ($LASTEXITCODE -ne 0) { throw "OpenCode npm 安装失败。" }
+        Write-Host "[5/6] OpenCode 安装完成；请新开终端运行 opencode --version 确认"
     } else {
         Write-Host "[5/6] 跳过 OpenCode"
     }
@@ -91,20 +106,11 @@ if (-not $SkipOpenCode) {
     Write-Host "[5/6] 跳过 OpenCode（-SkipOpenCode）"
 }
 
-# ---- 6. API key ----
-if (-not $Yes) {
-    if (-not $env:DEEPSEEK_API_KEY) {
-        $k = Read-Host "[6/6] 输入 DeepSeek API key（存入你的用户环境变量；直接回车跳过，稍后自设 DEEPSEEK_API_KEY）"
-        if ($k) {
-            setx DEEPSEEK_API_KEY $k | Out-Null
-            $env:DEEPSEEK_API_KEY = $k
-            Write-Host "      已保存到用户环境变量 DEEPSEEK_API_KEY"
-        }
-    } else {
-        Write-Host "[6/6] DEEPSEEK_API_KEY 已设置"
-    }
+# ---- 6. API key（不在安装脚本中读取或回显秘密） ----
+if ($env:DEEPSEEK_API_KEY) {
+    Write-Host "[6/6] DEEPSEEK_API_KEY 已设置（未读取其内容）"
 } else {
-    Write-Host "[6/6] 跳过 key 设置（-Yes 模式）"
+    Write-Host "[6/6] 未设置 DEEPSEEK_API_KEY；请稍后通过系统环境变量或密钥管理器配置"
 }
 
 Write-Host ""

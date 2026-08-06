@@ -1,7 +1,12 @@
 ---
 id: C-000
 problem: _template
-status: numeric-verified
+version: v1
+based_on: problems/_template/model.md
+status: evidence-supported
+human_disposition: pending
+decision: null
+formal: not-requested
 verify:
   script: verifiers/search/counterexample_search.py
   args: --spec problems/_template/specs/c000_demo.json
@@ -17,10 +22,12 @@ evidence: problems/_template/results/c000_evidence.json
 **依赖假设**：无（自包含演示）。
 
 **价值**：无——本文件是框架冒烟测试与格式样例，展示
-猜想 → spec → 谓词 → 验证器 → evidence → status 的完整链路。
+研究主张 → spec → 谓词 → 有界检查 → evidence → status 的完整链路。
 （手算验证：玩家 2 在混合均衡中对两行动无差异 ⟺ p·a = (1−p)·b ⟺ p = b/(a+b)。）
 
-## 证明草稿
+## 当前证据与边界
 
-（略。真实猜想中由 prover 在此写草稿：每步标注依赖假设/引理，
-卡住处显式写 [GAP: ...]，通过 /audit 后才能标 proved。）
+注册验证器在 spec 声明的有限参数域内随机检查 300 个样本；当前未找到反例。
+这只支持 `evidence-supported`，不等价于定理证明，也不排除采样点之外存在反例。
+若需要更强结论，应另行提供解析论证、形式化证明或更有针对性的压力测试，
+并由结构化独立审计记录其审查范围。

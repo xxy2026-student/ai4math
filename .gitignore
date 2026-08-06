@@ -5,6 +5,13 @@ __pycache__/
 runner/config.yaml
 remote/hosts.yaml
 remote/jobs.json
+remote/jobs.json.lock
+remote/jobs.json.tmp-*
+tests/.tmp/
+
+# 人类决策的运行记录可能含研究上下文；框架说明保留，实际请求/响应默认不入库。
+decisions/*/
+!decisions/README.md
 
 # 个人研究内容不入库，只发布框架与模板。
 # （若你想在自己的 fork 里版本化研究内容，删掉下面这几行即可）

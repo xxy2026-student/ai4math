@@ -2,7 +2,8 @@
 
 协议：每个验证器结束前必须调用 verdict() 打印一行
     VERDICT: PASS ...  /  VERDICT: REFUTED ...  /  VERDICT: ERROR ...
-hook_gate.py 依据这一行核验猜想文件的 status 是否与验证结果一致。
+gate.py 只接受受信注册表中的 claim-evidence driver，并核对唯一 VERDICT、
+spec 与 evidence 身份。PASS 仅表示声明范围内的机械检查通过，不表示数学证明。
 """
 import json
 import os

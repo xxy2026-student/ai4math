@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# ai4math 一键部署（Mac / Linux）。
+# AI4Research 一键部署（Mac / Linux；仓库名兼容保留为 ai4math）。
 # 用法：
 #   ./setup.sh                # 交互式
 #   ./setup.sh --yes          # 全部默认继续
@@ -22,7 +22,7 @@ confirm() {
 }
 
 echo ""
-echo "=== ai4math 一键部署 ==="
+echo "=== AI4Research 一键部署 ==="
 
 # 1. Python
 PY="$(command -v python3 || true)"
@@ -44,7 +44,9 @@ echo "[2/6] 虚拟环境与依赖就绪"
 # 3. 冒烟测试
 ./.venv/bin/python verifiers/search/counterexample_search.py \
   --spec problems/_template/specs/c000_demo.json
-echo "[3/6] 冒烟测试通过（上一行应为 VERDICT: PASS checked=300）"
+./.venv/bin/python verifiers/gate.py --all
+./.venv/bin/python -B -m unittest discover -s tests -q
+echo "[3/6] 验证器、全树门禁与框架测试通过"
 
 # 4. runner 配置
 if [ ! -f runner/config.yaml ]; then

@@ -1,5 +1,6 @@
 {
   "conjecture": "C-000",
+  "problem": "_template",
   "predicate": "problems/_template/predicates/c000_pred.py",
   "params": {"a": [0.1, 5.0], "b": [0.1, 5.0]},
   "n_samples": 300,
