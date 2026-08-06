@@ -135,7 +135,9 @@ def _base_evidence(spec_rel: str, spec: dict[str, Any]) -> dict[str, Any]:
     claim_id = spec["conjecture"]
     def digest(path: str) -> str:
         with open(path, "rb") as handle:
-            return "sha256:" + hashlib.sha256(handle.read()).hexdigest()
+            payload = handle.read()
+        payload = payload.replace(b"\r\n", b"\n").replace(b"\r", b"\n")
+        return "sha256:" + hashlib.sha256(payload).hexdigest()
 
     return {
         "claim_id": claim_id,

@@ -30,15 +30,19 @@ with open(spec_rel, encoding="utf-8") as handle:
     spec = json.load(handle)
 result = spec.get("_result", "PASS")
 checked = spec["n_samples"] if result == "PASS" else 1
+def digest(path):
+    payload = pathlib.Path(path).read_bytes()
+    payload = payload.replace(b"\r\n", b"\n").replace(b"\r", b"\n")
+    return "sha256:" + hashlib.sha256(payload).hexdigest()
 payload = {
     "claim_id": spec.get("_evidence_claim_id", spec["conjecture"]),
     "conjecture": spec["conjecture"],
     "problem": spec["problem"],
     "spec": spec_rel,
     "predicate": spec["predicate"],
-    "spec_sha256": "sha256:" + hashlib.sha256(pathlib.Path(spec_rel).read_bytes()).hexdigest(),
-    "predicate_sha256": "sha256:" + hashlib.sha256(pathlib.Path(spec["predicate"]).read_bytes()).hexdigest(),
-    "verifier_sha256": "sha256:" + hashlib.sha256(pathlib.Path(__file__).read_bytes()).hexdigest(),
+    "spec_sha256": digest(spec_rel),
+    "predicate_sha256": digest(spec["predicate"]),
+    "verifier_sha256": digest(__file__),
     "evidence": spec["evidence"],
     "seed": spec.get("seed", 0),
     "n_samples": spec["n_samples"],
@@ -385,6 +389,30 @@ formal: {values['formal']}
             )
         self.assertFalse(ok)
         self.assertIn("predicate_sha256", message)
+        run.assert_not_called()
+
+    def test_evidence_hashes_are_stable_across_lf_and_crlf_checkouts(self):
+        claim = self._claim()
+        ok, message = gate.check_text(self.claim_rel, claim, root=self.root)
+        self.assertTrue(ok, message)
+
+        styles = {
+            self.spec_rel: b"\r\n",
+            "problems/demo/predicates/p.py": b"\n",
+            self.driver_rel: b"\r\n",
+        }
+        for rel, newline in styles.items():
+            path = self.root / rel
+            canonical = path.read_bytes().replace(b"\r\n", b"\n").replace(
+                b"\r", b"\n"
+            )
+            path.write_bytes(canonical.replace(b"\n", newline))
+
+        with mock.patch.object(gate.subprocess, "run") as run:
+            ok, message = gate.check_text(
+                self.claim_rel, claim, root=self.root, execute_verifiers=False
+            )
+        self.assertTrue(ok, message)
         run.assert_not_called()
 
     def test_valid_evidence_claim_check_file_and_tree(self):

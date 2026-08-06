@@ -113,7 +113,11 @@ def claim_review_hash(text: str) -> str:
 
 def file_sha256(path: str) -> str:
     with open(path, "rb") as handle:
-        return "sha256:" + hashlib.sha256(handle.read()).hexdigest()
+        payload = handle.read()
+    # Git may materialize tracked text as LF or CRLF. Evidence identity binds
+    # textual content, not the checkout's platform newline convention.
+    payload = payload.replace(b"\r\n", b"\n").replace(b"\r", b"\n")
+    return "sha256:" + hashlib.sha256(payload).hexdigest()
 
 
 def venv_python(root: str) -> str:
