@@ -89,6 +89,8 @@ Lean 可以作为未来的可选形式证明通道，但不是项目中心，也
 
 环境要求：Windows 10/11、macOS 或 Linux，Python 3.11+。
 
+完整的克隆、API Key、Windows/macOS/Linux 安装、验证、升级与故障排查说明见 [DEPLOYMENT.md](DEPLOYMENT.md)。
+
 - Windows：双击 `setup.bat`
 - macOS / Linux：运行 `chmod +x setup.sh && ./setup.sh`
 
