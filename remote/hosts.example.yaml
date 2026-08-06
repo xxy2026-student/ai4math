@@ -4,14 +4,19 @@
 # ssh 字段推荐填 ~/.ssh/config 里的 Host 别名——跳板（ProxyJump）、端口、
 # 密钥路径全部交给 ssh config 管理，本框架不接触、不存储任何密钥文件。
 # 认证必须是免密 key（脚本以 BatchMode 运行，不支持密码交互）。
+# run 前还必须在本地交互终端执行 authorize，取得与 host、cmd 和当时解析出的
+# ssh/workdir/python 配置绑定、15 分钟过期且一次即失效的 approval token。
+# jobs.json 只保存 token 的 SHA-256 摘要，并用文件锁串行消费；它防误操作，
+# 仍不防拥有本机状态文件或 SSH 权限的恶意进程。
+# push/setup 也会逐次要求交互式确认，无人值守 agent 不能代答。
 
 hosts:
   myserver:
     ssh: myserver           # ~/.ssh/config 的 Host 别名，或 user@host
-    workdir: ~/ai4math-exp  # 远程工作目录（自动创建）
+    workdir: ~/ai4research-exp  # 远程工作目录（自动创建）
     python: python3         # 远端系统 python（setup 用它建 .venv）
   # cluster:
   #   ssh: user@hpc.example.edu
-  #   workdir: ~/scratch/ai4math-exp
+  #   workdir: ~/scratch/ai4research-exp
   #   python: python3
   #   # scheduler: slurm    # 预留字段：Slurm 提交尚未实现

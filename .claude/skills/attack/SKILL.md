@@ -1,23 +1,21 @@
 ---
 name: attack
-description: 对一条猜想双线作战：prover 写证明草稿、skeptic 设计反例搜索，两者并行。用法：/attack <C-编号或猜想文件路径>
+description: 对候选主张并行寻找支持、反例、边界和替代解释，形成可审计证据包。用法：/attack <主张编号或路径>
 ---
 
-# /attack — 证明与反例并行
+# /attack — 对抗式压力测试
 
 输入：$ARGUMENTS
 
-1. 定位猜想文件，确认 status 是 open 或 numeric-verified。
-2. **同一条消息里并行派出**两个 subagent：
-   - **prover**：写证明草稿（写入猜想文件 `## 证明草稿`，GAP 显式标注）；
-   - **skeptic**：设计刁钻参数区域的反例搜索方案（spec + 谓词要点）。
-3. skeptic 方案回来后，主 agent 生成 spec/谓词并跑
-   `counterexample_search.py`（针对边界区域可多跑几个 spec）。
-4. 汇合裁决：
-   - **找到反例** → status: refuted，反例记入 `counterexamples/`；证明草稿
-     保留在文件里并加注 "已被反例推翻"——草稿哪一步与反例冲突，本身是信息。
-   - **草稿完整（无 GAP）且反例搜索通过** → 提示用户跑 `/audit`。
-     **禁止在本 skill 内把 status 改成 proved。**
-   - **草稿有 GAP** → 把每个 GAP 列为子问题，建议：可数值检验的先
-     /conjecture 化，纯逻辑的开新一轮 /attack。
-5. 汇报：裁决结果、GAP 清单或反例、建议的下一步。
+1. 定位 claim，核对其陈述、范围、依赖 model/design/result 的版本。若依赖 stale，先停止并回报。
+2. 在同一轮并行派出相互独立的角色：
+   - **prover/analyst**：构造支持性推导、机制解释或预测，显式标注 GAP；
+   - **skeptic**：寻找边界、反例、数据泄漏、混杂、替代解释、基线缺失和不可复现点。
+3. 主 agent 把双方建议转成可执行压力测试：边界 spec、负对照、稳健性、替代基线、反例搜索或复现检查。只能在 DESIGN_GATE envelope 内执行；超资源/新数据/外部服务先触发条件门。
+4. 汇合时区分：支持证据、反对证据、仍未知、证据适用范围与最强反对意见。
+   - 可复现反例否定陈述 → `refuted`，保留原草稿并标冲突步骤；
+   - 有限定支持但仍有 GAP → 保持 `evidence-supported` 或 `open`，提出收缩版本；
+   - 多通道一致且无已知致命漏洞 → 建议进入 `/audit`，**不得在本 skill 内标 `reviewed`**。
+5. 所有新结果绑定 claim/spec/环境版本，旧证据不覆盖。若主张被收缩，创建新版并将依赖旧版的 audit/paper 标 `stale`。
+
+对于确属形式命题的子任务，可以草拟证明并建议未来使用 Lean 检查；当前仓库尚无编译证据通道，gate 会拒绝 `formal: lean-verified`。接入可核验产物后，也只能把它用于精确子命题和精确依赖，不能外推为整个研究问题已解决。

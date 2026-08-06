@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "claim_evidence": {
+    "verifiers/search/counterexample_search.py": {
+      "kind": "bounded-claim-evidence",
+      "description": "Bounded randomized search over a versioned claim spec"
+    }
+  }
+}

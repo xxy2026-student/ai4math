@@ -1,0 +1,24 @@
+name: framework-checks
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: python -m pip install -r requirements.txt
+      - name: Check generated OpenCode files
+        run: |
+          python adapters/gen_opencode.py
+          git diff --exit-code -- AGENTS.md .opencode/commands .opencode/agents
+      - name: Run unit tests
+        run: python -B -m unittest discover -s tests -v
+      - name: Validate repository evidence states
+        run: python verifiers/gate.py --all

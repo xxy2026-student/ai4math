@@ -2,11 +2,11 @@
   "hooks": {
     "PostToolUse": [
       {
-        "matcher": "Write|Edit|MultiEdit",
+        "matcher": "Write|Edit|MultiEdit|NotebookEdit|Bash|ApplyPatch",
         "hooks": [
           {
             "type": "command",
-            "command": "python verifiers/hook_gate.py",
+            "command": "node verifiers/hook_gate_launcher.mjs",
             "timeout": 300
           }
         ]

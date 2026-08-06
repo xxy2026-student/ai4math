@@ -1,8 +1,9 @@
-"""模型无关的极简 agent loop：OpenAI 兼容 chat.completions + function calling。
+"""模型无关的 AI4Research agent loop：OpenAI 兼容接口 + 人类决策暂停/恢复。
 
 设计要点：
 - 单一事实源：角色提示词与工作流全部来自 .claude/（loader.py），与 Claude Code 同源；
-- 工具本地执行（tools.py），write_file 后自动过状态门禁（verifiers/gate.py）；
+- 工具本地执行（tools.py），write_file 落盘前自动过状态门禁；
+- 关键研究分叉调用 request_human_decision 后立即停止，不把推荐冒充用户授权；
 - subagent = 换 system prompt 新开一段对话；深度限 1，subagent 不能再派 subagent；
 - 换厂商只需 config 里的 base_url + api_key_env + model 三元组。
 """
@@ -12,17 +13,22 @@ import time
 import urllib.error
 import urllib.request
 
-from . import loader, tools
+from . import decisions, loader, tools
 
 RETRYABLE = {429, 500, 502, 503, 504}   # 过载/限流/网关类错误自动重试
 
 ORCHESTRATOR = """\
-你是 ai4math 仓库的主协调 agent，按任务描述推进研究工作流。
+你是 AI4Research 仓库的主协调 agent，目标是与人类一起发现、澄清并解决研究问题。
 
 - 需要专门角色时用 spawn_subagent 派遣；给 skeptic 的审计任务只附猜想陈述与
   证明草稿原文，不要转述任何人的思路（审计独立性）。
-- 一切状态推进必须经 verifiers/ 下的脚本背书（用 run 工具执行，python 解释器
-  一律写 {python} 占位符）。
+- 在问题定义、候选 idea、关键假设、研究设计、资源投入、结果解释和发布措辞等
+  重大分叉处，先形成自己的推荐与理由，再单独调用 request_human_decision；
+  未收到明确选择不得继续产生下游副作用。
+- 正常流程必须经过 problem、direction、design、claim、release 五个闸门；批准范围内
+  可持续执行，不要机械地重复询问。范围、成本、证据或外部副作用变化时重新开闸。
+- 决策卡没有默认批准；推荐项只是 LLM 意见，必须同时给出最强反对意见和 custom 入口。
+- 数值/符号/经验验证都是分级证据，不自动等于数学证明或用户认可。
 - 严格遵守 system prompt 前半部分（CLAUDE.md）的全部纪律。
 
 可用角色：
@@ -72,6 +78,9 @@ def _resolve_cfg(cfg_all, role, roles):
     if isinstance(alias, str) and alias not in ("", "default"):
         cfg["model"] = alias
     cfg.update((cfg_all.get("roles") or {}).get(role) or {})
+    limits = cfg_all.get("limits") or {}
+    if "request_timeout" not in cfg and "request_timeout" in limits:
+        cfg["request_timeout"] = limits["request_timeout"]
     return cfg
 
 
@@ -92,7 +101,8 @@ def _spawn_schema(roles):
             "required": ["role", "task"]}}}
 
 
-def run_agent(cfg_all, role, task, depth=0, on_event=None):
+def run_agent(cfg_all, role, task=None, depth=0, on_event=None,
+              initial_messages=None):
     """跑一个 agent 直到它给出最终文本回复；返回该回复。"""
     on_event = on_event or (lambda s: print(s, flush=True))
     limits = cfg_all.get("limits") or {}
@@ -100,21 +110,29 @@ def run_agent(cfg_all, role, task, depth=0, on_event=None):
     cap = int(limits.get("tool_output_chars", 8000))
 
     roles = loader.load_roles()
-    parts = [loader.load_claude_md()]
-    if role in roles:
-        parts.append(roles[role]["prompt"])
-    else:  # orchestrator（主协调 agent）
-        parts.append(ORCHESTRATOR % _role_list(roles))
-        task = loader.resolve_prompt(task, loader.load_skills())
-    system = "\n\n━━━\n\n".join(p for p in parts if p.strip())
+    if initial_messages is None:
+        parts = [loader.load_claude_md()]
+        if role in roles:
+            parts.append(roles[role]["prompt"])
+        else:  # orchestrator（主协调 agent）
+            parts.append(ORCHESTRATOR % _role_list(roles))
+            task = loader.resolve_prompt(task or "", loader.load_skills())
+        system = "\n\n━━━\n\n".join(p for p in parts if p.strip())
 
     cfg = _resolve_cfg(cfg_all, role, roles)
     schemas = list(tools.SCHEMAS)
+    if depth > 0:
+        schemas = [s for s in schemas
+                   if s["function"]["name"] != "request_human_decision"]
     if depth == 0:
         schemas.append(_spawn_schema(roles))
 
-    messages = [{"role": "system", "content": system},
-                {"role": "user", "content": task}]
+    if initial_messages is None:
+        messages = [{"role": "system", "content": system},
+                    {"role": "user", "content": task}]
+    else:
+        # JSON 往返得到一份纯数据深拷贝，防止调用方的 checkpoint 被原地修改。
+        messages = json.loads(json.dumps(initial_messages, ensure_ascii=False))
     for _ in range(max_turns):
         resp = _api_call(cfg, messages, schemas)
         msg = resp["choices"][0]["message"]
@@ -125,6 +143,36 @@ def run_agent(cfg_all, role, task, depth=0, on_event=None):
         messages.append(clean)
         if not calls:
             return clean["content"]
+
+        allowed_names = {schema["function"]["name"] for schema in schemas}
+        undeclared = [
+            c for c in calls if (c.get("function") or {}).get("name") not in allowed_names
+        ]
+        if undeclared:
+            # Some OpenAI-compatible providers may emit a tool call that was not
+            # present in the supplied schema. Treat the whole batch as zero-execution.
+            for c in calls:
+                name = (c.get("function") or {}).get("name", "")
+                messages.append({
+                    "role": "tool",
+                    "tool_call_id": c.get("id", ""),
+                    "content": f"[拒绝] 当前 agent 未获工具 {name!r}；本轮没有执行任何工具。",
+                })
+            continue
+
+        # 决策请求必须独占本轮，避免模型把“请求授权”和其他有副作用的调用打包执行。
+        decision_calls = [c for c in calls
+                          if c["function"]["name"] == "request_human_decision"]
+        if decision_calls and len(calls) != 1:
+            for c in calls:
+                messages.append({
+                    "role": "tool",
+                    "tool_call_id": c.get("id", ""),
+                    "content": ("[拒绝] request_human_decision 必须单独调用；"
+                                "本轮没有执行任何工具，请先提交决策卡并暂停。"),
+                })
+            continue
+
         for c in calls:
             name = c["function"]["name"]
             try:
@@ -143,6 +191,15 @@ def run_agent(cfg_all, role, task, depth=0, on_event=None):
                                        depth=depth + 1, on_event=on_event)
             else:
                 result = tools.dispatch(name, args)
+            result_text = (json.dumps(result, ensure_ascii=False)
+                           if isinstance(result, (dict, list)) else str(result))
+            if tools.is_human_decision(result):
+                # checkpoint 停在原始 assistant tool call。恢复时再以同一个
+                # tool_call_id 注入真实的人类响应，既不伪造用户消息，也不重放旧工具。
+                decisions.save_checkpoint(result["decision_id"], messages,
+                                          tool_call_id=c.get("id", ""),
+                                          role=role, root=tools.ROOT)
+                return result["message"]
             messages.append({"role": "tool", "tool_call_id": c.get("id", ""),
-                             "content": str(result)[:cap]})
+                             "content": result_text[:cap]})
     return "[中止：达到 max_turns 上限——考虑拆小任务或调大 limits.max_turns]"
